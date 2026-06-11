@@ -1,0 +1,156 @@
+﻿<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vélodle · Cyclistes</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root { --bg: #1a1a2e; --card: #1e293b; --text: #f1f5f9; --sub: #94a3b8; --accent: #f59e0b; --green: #22c55e; --red: #ef4444; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:'Fredoka',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; }
+  header { background:rgba(255,255,255,.04); padding:14px 20px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid rgba(255,255,255,.08); position:sticky; top:0; z-index:10; backdrop-filter:blur(8px); }
+  .logo { font-size:22px; font-weight:700; color:#fff; display:flex; align-items:center; gap:6px; text-decoration:none; }
+  .logo .o { color:var(--accent); }
+  .btn-back { background:rgba(255,255,255,.1); color:#fff; border:1px solid rgba(255,255,255,.15); border-radius:10px; padding:8px 16px; cursor:pointer; font-family:inherit; font-size:14px; text-decoration:none; transition:all .2s; }
+  .btn-back:hover { background:rgba(255,255,255,.2); }
+
+  main { max-width:900px; margin:0 auto; padding:16px; }
+
+  .toolbar { display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-bottom:16px; position:sticky; top:56px; z-index:5; padding:10px 0; background:var(--bg); }
+  #search { flex:1; min-width:200px; padding:12px 16px; font-size:15px; font-family:inherit; background:var(--card); border:1px solid rgba(255,255,255,.1); border-radius:12px; color:#fff; outline:none; }
+  #search::placeholder { color:rgba(255,255,255,.3); }
+  .btn { padding:10px 18px; border:none; border-radius:12px; font-size:13px; font-weight:600; font-family:inherit; cursor:pointer; transition:all .2s; white-space:nowrap; }
+  .btn-select { background:var(--green); color:#fff; }
+  .btn-select:hover { opacity:.85; }
+  .btn-none { background:var(--red); color:#fff; }
+  .btn-none:hover { opacity:.85; }
+  .btn-invert { background:rgba(255,255,255,.1); color:#fff; }
+  .btn-invert:hover { background:rgba(255,255,255,.2); }
+
+  .stats-bar { display:flex; gap:16px; align-items:center; margin-bottom:12px; font-size:14px; color:var(--sub); }
+  .stats-bar strong { color:var(--accent); font-size:18px; }
+  .save-indicator { font-size:12px; color:var(--green); opacity:0; transition:opacity .3s; }
+  .save-indicator.show { opacity:1; }
+
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:6px; }
+  .cyclist-row { display:flex; align-items:center; gap:10px; padding:10px 14px; background:var(--card); border-radius:10px; cursor:pointer; transition:all .15s; border:1px solid transparent; user-select:none; }
+  .cyclist-row:hover { border-color:rgba(255,255,255,.1); }
+  .cyclist-row.disabled { opacity:.35; }
+  .cyclist-row .flag { font-size:18px; width:24px; text-align:center; flex-shrink:0; }
+  .cyclist-row .name { font-weight:600; font-size:15px; flex:1; }
+  .cyclist-row .info { font-size:11px; color:var(--sub); flex-shrink:0; }
+  .toggle { width:44px; height:26px; background:var(--red); border-radius:26px; position:relative; transition:background .2s; flex-shrink:0; }
+  .toggle.on { background:var(--green); }
+  .toggle::after { content:''; position:absolute; top:3px; left:3px; width:20px; height:20px; background:#fff; border-radius:50%; transition:transform .2s; }
+  .toggle.on::after { transform:translateX(18px); }
+
+  .no-results { text-align:center; padding:40px; color:var(--sub); font-size:16px; }
+
+  @media (max-width:600px) {
+    .toolbar { flex-direction:column; align-items:stretch; }
+    .grid { grid-template-columns:1fr; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <a href="index.html" class="logo">🚴 VÉL<span class="o">O</span>DLE</a>
+  <a href="index.html" class="btn-back">← Retour au jeu</a>
+</header>
+
+<main>
+  <div class="toolbar">
+    <input id="search" type="text" placeholder="🔍 Filtrer par nom..." autocomplete="off">
+    <button class="btn btn-select" onclick="selectAll()">✅ Tous</button>
+    <button class="btn btn-none" onclick="selectNone()">❌ Aucun</button>
+    <button class="btn btn-invert" onclick="invert()">🔄 Inverser</button>
+  </div>
+
+  <div class="stats-bar">
+    <span><strong id="count">220</strong> / 220 sélectionnés</span>
+    <span class="save-indicator" id="saved">✓ Sauvegardé</span>
+  </div>
+
+  <div class="grid" id="grid"></div>
+  <div class="no-results" id="noResults" style="display:none">Aucun cycliste trouvé</div>
+</main>
+
+<script src="data.js"></script>
+<script>
+const STORAGE_KEY = 'velodle_enabled';
+let enabled = new Set();
+
+function loadEnabled() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      enabled = new Set(JSON.parse(raw));
+    } else {
+      // first time: all enabled
+      CYCLISTES.forEach(c => enabled.add(c.nom));
+    }
+  } catch(e) {
+    CYCLISTES.forEach(c => enabled.add(c.nom));
+  }
+}
+
+function saveEnabled() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify([...enabled]));
+  document.getElementById('saved').classList.add('show');
+  setTimeout(() => document.getElementById('saved').classList.remove('show'), 1500);
+}
+
+function toggle(name) {
+  if (enabled.has(name)) enabled.delete(name); else enabled.add(name);
+  saveEnabled();
+  render();
+}
+
+function selectAll() { CYCLISTES.forEach(c => enabled.add(c.nom)); saveEnabled(); render(); }
+function selectNone() { enabled.clear(); saveEnabled(); render(); }
+function invert() {
+  CYCLISTES.forEach(c => enabled.has(c.nom) ? enabled.delete(c.nom) : enabled.add(c.nom));
+  saveEnabled(); render();
+}
+
+function render() {
+  const q = document.getElementById('search').value.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  const filtered = CYCLISTES.filter(c => {
+    if (!q) return true;
+    const cn = c.nom.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    return cn.includes(q);
+  });
+
+  const grid = document.getElementById('grid');
+  if (filtered.length === 0) {
+    grid.innerHTML = ''; document.getElementById('noResults').style.display = 'block';
+  } else {
+    document.getElementById('noResults').style.display = 'none';
+    grid.innerHTML = filtered.map(c => {
+      const flag = FLAGS[c.p] || '🏳️';
+      const on = enabled.has(c.nom);
+      return `<div class="cyclist-row${on?'':' disabled'}" onclick="toggle('${c.nom.replace(/'/g,"\\'")}')">
+        <span class="flag">${flag}</span>
+        <span class="name">${c.nom}</span>
+        <span class="info">${c.n} · ${SPEC_NAMES[c.s]||c.s}</span>
+        <div class="toggle${on?' on':''}"></div>
+      </div>`;
+    }).join('');
+  }
+
+  const total = CYCLISTES.length;
+  const sel = enabled.size;
+  document.getElementById('count').textContent = sel;
+  document.getElementById('count').style.color = sel < 10 ? 'var(--red)' : sel < 50 ? 'var(--accent)' : 'var(--green)';
+}
+
+// Init
+const FLAGS = {'France':'🇫🇷','Belgique':'🇧🇪','Italie':'🇮🇹','Espagne':'🇪🇸','Pays-Bas':'🇳🇱','Grande-Bretagne':'🇬🇧','Allemagne':'🇩🇪','Suisse':'🇨🇭','Danemark':'🇩🇰','Norvège':'🇳🇴','Suède':'🇸🇪','Slovénie':'🇸🇮','Slovaquie':'🇸🇰','Pologne':'🇵🇱','Rép. tchèque':'🇨🇿','Portugal':'🇵🇹','Irlande':'🇮🇪','Luxembourg':'🇱🇺','Colombie':'🇨🇴','Équateur':'🇪🇨','Érythrée':'🇪🇷','Kazakhstan':'🇰🇿','Russie':'🇷🇺','Australie':'🇦🇺','États-Unis':'🇺🇸','Mexique':'🇲🇽'};
+const SPEC_NAMES = {grimpeur:'Grimpeur',sprinteur:'Sprinteur',rouleur:'Rouleur',puncheur:'Puncheur',classiques:'Classiques',baroudeur:'Baroudeur',complet:'Complet'};
+
+loadEnabled();
+render();
+</script>
+</body>
+</html>
