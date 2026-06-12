@@ -314,7 +314,19 @@
 <script>
 // Load rider images
 let RIDER_IMAGES = {};
-fetch('rider_images.json').then(r => r.json()).then(d => { RIDER_IMAGES = d; }).catch(() => {});
+let RIDER_IMAGES_LOADED = false;
+fetch('rider_images.json').then(r => r.json()).then(d => { RIDER_IMAGES = d; RIDER_IMAGES_LOADED = true; rerenderCards(); }).catch(() => { RIDER_IMAGES_LOADED = true; });
+
+function rerenderCards() {
+  // Re-render existing cards to show real photos
+  document.querySelectorAll('.guess-card').forEach(function(card) {
+    var name = card.querySelector('.guess-name-bar img').alt;
+    var riderKey = Object.keys(RIDER_IMAGES).find(function(k) { return k.normalize('NFC') === name.normalize('NFC'); });
+    if (riderKey && RIDER_IMAGES[riderKey]) {
+      card.querySelector('.guess-name-bar img').src = RIDER_IMAGES[riderKey];
+    }
+  });
+}
 // ── Helpers ──
 const FLAGS = {
   'France':'🇫🇷','Belgique':'🇧🇪','Italie':'🇮🇹','Espagne':'🇪🇸','Pays-Bas':'🇳🇱','Grande-Bretagne':'🇬🇧',
@@ -371,23 +383,30 @@ function pickMystery(seed, pool) {
 function initGame() {
   POOL = getActivePool();
   if (POOL.length === 0) { document.getElementById('dayCounter').textContent = 'Erreur'; return; }
-  MYSTERY = TEST_MODE ? POOL[Math.floor(Math.random() * POOL.length)] : pickMystery(getDaySeed(), POOL);
-  gameOver = false;
-  guesses = 0;
-  document.getElementById('guesses').innerHTML = '';
-  document.getElementById('bannerContainer').innerHTML = '';
-  document.getElementById('searchWrapper').style.display = 'block';
-  document.getElementById('search').value = '';
-  document.getElementById('autocomplete').classList.remove('show');
-  document.getElementById('topSpacer').classList.remove('shrink');
-  document.getElementById('catHeader').style.display = 'none';
-  var n = POOL.length;
   var diff = parseInt(localStorage.getItem('velodle_difficulty') || '1') || 1;
   document.getElementById('difficulty').value = diff;
   var diffNames = ['','🍼 Facile','👍 Moyen','⭐ Difficile'];
+  var n = POOL.length;
+
+  // Check if there's a saved game to restore
+  var saved = null;
+  try { saved = JSON.parse(localStorage.getItem(getStorageKey())); } catch(e) {}
+  if (saved && saved.mystery && saved.names && saved.names.length > 0) {
+    // Find the mystery in the current pool
+    MYSTERY = POOL.find(function(c) { return c.nom === saved.mystery; });
+    if (MYSTERY) {
+      gameOver = saved.done || false;
+      guesses = saved.attempts || 0;
+      document.getElementById('dayCounter').textContent = TEST_MODE ? 'Vélodle 🔧 · '+diffNames[diff]+' · '+n+' cyclistes' : 'Vélodle #'+getDayNumber()+' · '+diffNames[diff];
+      return; // Will be rendered by loadState() below
+    }
+  }
+  
+  // No valid saved state, start fresh
+  MYSTERY = TEST_MODE ? POOL[Math.floor(Math.random() * POOL.length)] : pickMystery(getDaySeed(), POOL);
+  gameOver = false;
+  guesses = 0;
   document.getElementById('dayCounter').textContent = TEST_MODE ? 'Vélodle 🔧 · '+diffNames[diff]+' · '+n+' cyclistes' : 'Vélodle #'+getDayNumber()+' · '+diffNames[diff];
-  localStorage.removeItem(STORAGE_KEY_PREFIX + 'test');
-  localStorage.removeItem(STORAGE_KEY_PREFIX + getDaySeed());
 }
 function getStorageKey() { return STORAGE_KEY_PREFIX + (TEST_MODE ? 'test' : getDaySeed()); }
 
@@ -413,7 +432,7 @@ function saveState(won) {
   document.querySelectorAll('.guess-card .guess-name-bar img').forEach(el => {
     names.push(el.alt);
   });
-  localStorage.setItem(getStorageKey(), JSON.stringify({ attempts: guesses, done: gameOver, won, names }));
+  localStorage.setItem(getStorageKey(), JSON.stringify({ attempts: guesses, done: gameOver, won, names, mystery: MYSTERY.nom }));
 }
 
 // ── Render ──
@@ -606,7 +625,18 @@ document.addEventListener('click', (e) => { if (!e.target.closest('.search-box')
 function giveUp() { if (gameOver) return; gameOver=true; saveState(false); updateStats(false, guesses); showBanner(false); }
 
 // ── Restart (test mode) ──
-function restartGame() { initGame(); loadState(); }
+function restartGame() {
+  localStorage.removeItem(getStorageKey());
+  document.getElementById('guesses').innerHTML = '';
+  document.getElementById('bannerContainer').innerHTML = '';
+  document.getElementById('searchWrapper').style.display = 'block';
+  document.getElementById('search').value = '';
+  document.getElementById('autocomplete').classList.remove('show');
+  document.getElementById('topSpacer').classList.remove('shrink');
+  document.getElementById('catHeader').style.display = 'none';
+  initGame();
+  loadState();
+}
 
 // ── Stats ──
 function updateStats(won, attempts) {
