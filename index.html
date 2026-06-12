@@ -235,9 +235,9 @@
   <div class="logo"><span class="bike">🚴</span>VÉL<span class="o">O</span>DLE</div>
   <div class="header-actions">
     <select id="difficulty" onchange="changeDifficulty()" style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);color:#fff;border-radius:10px;padding:7px 10px;font-family:Fredoka,sans-serif;font-size:13px;cursor:pointer;outline:none;">
-      <option value="3" style="background:#1a1a2e;color:#fff">⭐ Difficile</option>
-      <option value="2" style="background:#1a1a2e;color:#fff">👍 Moyen</option>
       <option value="1" style="background:#1a1a2e;color:#fff">🍼 Facile</option>
+      <option value="2" style="background:#1a1a2e;color:#fff">👍 Moyen</option>
+      <option value="3" style="background:#1a1a2e;color:#fff">⭐ Difficile</option>
     </select>
     <button class="btn-icon" onclick="openModal('rules')" title="Règles">📖</button>
     <button class="btn-icon" onclick="openModal('stats')" title="Stats">📊</button>
@@ -348,7 +348,7 @@ let POOL = [];
 const STORAGE_KEY_PREFIX = 'velodle_';
 
 function getActivePool() {
-  var diff = parseInt(localStorage.getItem('velodle_difficulty') || '3') || 3;
+  var diff = parseInt(localStorage.getItem('velodle_difficulty') || '1') || 1;
   return CYCLISTES.filter(function(c) { return c.d <= diff; });
 }
 function changeDifficulty() {
@@ -382,7 +382,7 @@ function initGame() {
   document.getElementById('topSpacer').classList.remove('shrink');
   document.getElementById('catHeader').style.display = 'none';
   var n = POOL.length;
-  var diff = parseInt(localStorage.getItem('velodle_difficulty') || '3') || 3;
+  var diff = parseInt(localStorage.getItem('velodle_difficulty') || '1') || 1;
   document.getElementById('difficulty').value = diff;
   var diffNames = ['','🍼 Facile','👍 Moyen','⭐ Difficile'];
   document.getElementById('dayCounter').textContent = TEST_MODE ? 'Vélodle 🔧 · '+diffNames[diff]+' · '+n+' cyclistes' : 'Vélodle #'+getDayNumber()+' · '+diffNames[diff];

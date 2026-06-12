@@ -68,7 +68,7 @@
   </div>
 
   <div class="stats-bar">
-    <span><strong id="count">220</strong> / 220 sélectionnés</span>
+    <span><strong id="count">...</strong> sélectionnés</span>
     <span class="save-indicator" id="saved">✓ Sauvegardé</span>
   </div>
 
@@ -141,7 +141,7 @@ function render() {
 
   const total = CYCLISTES.length;
   const sel = enabled.size;
-  document.getElementById('count').textContent = sel;
+  document.getElementById('count').textContent = sel + ' / ' + total;
   document.getElementById('count').style.color = sel < 10 ? 'var(--red)' : sel < 50 ? 'var(--accent)' : 'var(--green)';
 }
 
