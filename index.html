@@ -212,20 +212,27 @@
   @media (max-width: 600px) {
     .logo { font-size: 22px; }
     .logo .bike { font-size: 26px; }
-    .cat-header { grid-template-columns: repeat(6, 1fr); }
-    .ch-cell:nth-child(n+7) { display: none; }
-    .ch-spacer { display: none; }
-    .guess-card { grid-template-columns: repeat(6, 1fr); }
-    .guess-card .cell:nth-child(n+7) { display: none; }
-    .guess-name-bar { padding: 0; }
-    .cell { padding: 6px 2px; aspect-ratio: 1; }
-    .cell .value { font-size: 12px; }
-    .cell .value.team { font-size: 10px; }
+    .cat-header { grid-template-columns: repeat(10, 1fr); }
+    .ch-cell { font-size: 9px; padding: 4px 1px; letter-spacing:.2px; }
+    .ch-spacer { background: none !important; }
+
+    /* Swipe container */
+    .swipe-track { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; scroll-behavior: smooth; }
+    .swipe-track::-webkit-scrollbar { display: none; }
+    .swipe-page { min-width: 100%; scroll-snap-align: center; padding: 0 4px; }
+
+    .guess-card { margin: 0; }
+    .cell { padding: 4px 1px; aspect-ratio: auto; min-height: 48px; }
+    .cell .value { font-size: 11px; }
+    .cell .value.team { font-size: 9px; }
+    .guess-name-bar img { min-height: 48px; }
+    .guess-name-bar { border-radius: calc(var(--radius) - 3px) 0 0 calc(var(--radius) - 3px); }
+
+    .dots { display: flex; gap: 5px; justify-content: center; padding: 6px; }
+    .dot { width: 7px; height: 7px; border-radius: 50%; background: rgba(255,255,255,.25); transition: all .3s; cursor: pointer; }
+    .dot.active { background: var(--accent2); box-shadow: 0 0 6px var(--accent2); }
+
     .btn-giveup { font-size: 11px; padding: 8px 10px; }
-  }
-  @media (max-width: 400px) {
-    .guess-grid { grid-template-columns: repeat(3, 1fr); }
-    .cell .label { font-size: 7px; }
   }
 </style>
 </head>
@@ -253,17 +260,20 @@
     <div style="display:flex;flex-direction:column;gap:0">
     <div class="cat-header" id="catHeader" style="display:none">
       <div class="ch-cell ch-spacer"></div>
-      <div class="ch-cell">🏳️ Pays</div>
-      <div class="ch-cell">🎂 Année</div>
-      <div class="ch-cell">🔧 Spéc.</div>
-      <div class="ch-cell">🏆 Tour</div>
-      <div class="ch-cell">🌸 Giro</div>
-      <div class="ch-cell">🔴 Vuelta</div>
-      <div class="ch-cell">🗿 Monum.</div>
-      <div class="ch-cell">🌈 Ch.M.</div>
-      <div class="ch-cell">🚲 Équipe</div>
+      <div class="ch-cell">🏳️</div>
+      <div class="ch-cell">🎂</div>
+      <div class="ch-cell">🔧</div>
+      <div class="ch-cell">🏆</div>
+      <div class="ch-cell">🌸</div>
+      <div class="ch-cell">🔴</div>
+      <div class="ch-cell">🗿</div>
+      <div class="ch-cell">🌈</div>
+      <div class="ch-cell">🚲</div>
     </div>
-    <div class="guesses" id="guesses"></div>
+    <div class="dots" id="swipeDots" style="display:none"></div>
+    <div class="swipe-track" id="swipeTrack">
+    <div class="guesses swipe-page" id="guesses"></div>
+    </div>
     </div>
     <div id="bannerContainer"></div>
     <div class="legend">
@@ -475,12 +485,16 @@ function renderCard(cyclist, results) {
   const wikiUrl = hasPhoto ? RIDER_IMAGES[riderKey] : '';
   const fallback = `https://ui-avatars.com/api/?name=${encodeURIComponent(cyclist.nom)}&size=120&background=1e293b&color=e2e8f0&bold=true&font-size=0.35&length=2`;
   card.innerHTML = `<div class="guess-name-bar"><img src="${wikiUrl || fallback}" alt="${cyclist.nom}" referrerpolicy="no-referrer" onerror="this.onerror=null;this.src='${fallback}'"></div>${cells}`;
-  container.insertBefore(card, container.firstChild);
 
-  setTimeout(() => {
-    document.getElementById('topSpacer').classList.add('shrink');
-    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  }, 50);
+  // Wrap in swipe page
+  var page = document.createElement('div');
+  page.className = 'swipe-page';
+  page.appendChild(card);
+  container.appendChild(page);
+
+  updateDots();
+  setTimeout(function() { swipeToLatest(); }, 50);
+
 }
 
 function showBanner(won) {
@@ -628,6 +642,7 @@ function giveUp() { if (gameOver) return; gameOver=true; saveState(false); updat
 function restartGame() {
   localStorage.removeItem(getStorageKey());
   document.getElementById('guesses').innerHTML = '';
+  document.getElementById('swipeDots').style.display = 'none';
   document.getElementById('bannerContainer').innerHTML = '';
   document.getElementById('searchWrapper').style.display = 'block';
   document.getElementById('search').value = '';
@@ -728,7 +743,58 @@ function toggleColor() {
 }
 applyMode();
 
-// ── Init ──
+// ── Swipe navigation ──
+function updateDots() {
+  var pages = document.querySelectorAll('.swipe-page');
+  var dotsEl = document.getElementById('swipeDots');
+  if (pages.length <= 1) { dotsEl.style.display = 'none'; return; }
+  dotsEl.style.display = 'flex';
+  dotsEl.innerHTML = '';
+  pages.forEach(function(p, i) {
+    var d = document.createElement('div');
+    d.className = 'dot';
+    d.onclick = function() { swipeTo(i); };
+    dotsEl.appendChild(d);
+  });
+}
+
+function swipeToLatest() {
+  var pages = document.querySelectorAll('.swipe-page');
+  if (pages.length === 0) return;
+  pages[pages.length-1].scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+  highlightDot(pages.length-1);
+}
+
+function swipeTo(idx) {
+  var pages = document.querySelectorAll('.swipe-page');
+  if (pages[idx]) { pages[idx].scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' }); highlightDot(idx); }
+}
+
+function highlightDot(idx) {
+  document.querySelectorAll('.dot').forEach(function(d, i) { d.classList.toggle('active', i===idx); });
+}
+
+var swipeTrack = document.getElementById('swipeTrack');
+if (swipeTrack) {
+  var touchStartX = 0;
+  swipeTrack.addEventListener('touchstart', function(e) { touchStartX = e.touches[0].clientX; });
+  swipeTrack.addEventListener('touchend', function(e) {
+    var diff = touchStartX - e.changedTouches[0].clientX;
+    var pages = document.querySelectorAll('.swipe-page');
+    if (Math.abs(diff) > 40 && pages.length > 1) {
+      var current = Math.round(swipeTrack.scrollLeft / swipeTrack.offsetWidth);
+      if (diff > 0 && current < pages.length-1) swipeTo(current+1);
+      else if (diff < 0 && current > 0) swipeTo(current-1);
+    }
+  });
+  swipeTrack.addEventListener('scroll', function() {
+    var pages = document.querySelectorAll('.swipe-page');
+    if (pages.length === 0) return;
+    var idx = Math.round(swipeTrack.scrollLeft / swipeTrack.offsetWidth);
+    highlightDot(Math.min(idx, pages.length-1));
+  });
+}
+
 if (!MYSTERY) initGame();
 loadState();
 console.log('RIDER_IMAGES loaded:', typeof RIDER_IMAGES !== 'undefined', typeof RIDER_IMAGES !== 'undefined' ? Object.keys(RIDER_IMAGES).length : 0);
