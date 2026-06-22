@@ -211,13 +211,12 @@
   .btn-close { display: block; margin: 16px auto 0; padding: 10px 24px; border: 1px solid #ddd; border-radius: 20px; background: #fff; cursor: pointer; font-family: 'Fredoka', sans-serif; }
 
   @media (max-width: 600px) {
+    html, body { overflow: hidden; position: fixed; width: 100%; height: 100%; }
     .logo { font-size: 22px; }
     .logo .bike { font-size: 26px; }
 
-    /* Cat header - keep compact icons */
-    .cat-header { grid-template-columns: repeat(10, 1fr); }
-    .ch-cell { font-size: 9px; padding: 4px 1px; letter-spacing:.2px; }
-    .ch-spacer { background: none !important; }
+    /* Hide category header on mobile */
+    .cat-header { display: none !important; }
 
     /* Swipe container */
     .swipe-track { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; scroll-behavior: smooth; flex: 1; }
@@ -245,8 +244,12 @@
       border-bottom: 1px solid rgba(0,0,0,.04);
     }
     .cell::before { content: attr(data-label); font-size: 13px; font-weight: 600; opacity: .6; text-transform: uppercase; letter-spacing:.5px; }
-    .cell .value { font-size: 15px; }
-    .cell .value.team { font-size: 13px; }
+    .cell .value { font-size: 15px; font-weight: 800; }
+    .cell .value.team { font-size: 13px; font-weight: 800; }
+    .c-green .value { color: #052e16 !important; }
+    .c-orange .value { color: #431407 !important; }
+    .c-red .value { color: #450a0a !important; }
+    .c-grey .value { color: #111827 !important; }
     .cell:last-child { border-radius: 0 0 var(--radius) var(--radius); }
 
     .dots { display: flex; gap: 5px; justify-content: center; padding: 6px; }
