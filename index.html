@@ -143,6 +143,7 @@
     width: 100%; height: 100%; object-fit: cover; display: block;
     background: rgba(255,255,255,.05);
   }
+  .gn-name-mobile { display: none; }
   .cell {
     padding: 8px 4px; text-align: center; transition: background .3s;
     display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
@@ -212,6 +213,8 @@
   @media (max-width: 600px) {
     .logo { font-size: 22px; }
     .logo .bike { font-size: 26px; }
+
+    /* Cat header - keep compact icons */
     .cat-header { grid-template-columns: repeat(10, 1fr); }
     .ch-cell { font-size: 9px; padding: 4px 1px; letter-spacing:.2px; }
     .ch-spacer { background: none !important; }
@@ -219,20 +222,42 @@
     /* Swipe container */
     .swipe-track { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; scroll-behavior: smooth; }
     .swipe-track::-webkit-scrollbar { display: none; }
-    .swipe-page { min-width: 100%; scroll-snap-align: center; padding: 0 4px; }
+    .swipe-page { min-width: 100%; scroll-snap-align: center; padding: 0 4px; display: flex; align-items: flex-start; justify-content: center; }
 
-    .guess-card { margin: 0; }
-    .cell { padding: 4px 1px; aspect-ratio: auto; min-height: 48px; }
-    .cell .value { font-size: 11px; }
-    .cell .value.team { font-size: 9px; }
-    .guess-name-bar img { min-height: 48px; }
-    .guess-name-bar { border-radius: calc(var(--radius) - 3px) 0 0 calc(var(--radius) - 3px); }
+    /* VERTICAL card on mobile */
+    .guess-card { 
+      display: flex; flex-direction: column; gap: 0; padding: 0; 
+      background: transparent; box-shadow: none; width: 100%; max-width: 380px;
+      margin-top: 8px;
+    }
+    .guess-name-bar { 
+      aspect-ratio: auto; padding: 12px; border-radius: var(--radius) var(--radius) 0 0;
+      display: flex; gap: 10px; align-items: center; background: var(--card);
+    }
+    .guess-name-bar img { width: 56px; height: 56px; border-radius: 50%; min-height: auto; flex-shrink: 0; }
+    .gn-name-mobile { display: block; font-weight: 700; font-size: 16px; color: var(--text); }
+
+    /* Vertical category rows */
+    .guess-name-bar + .cell,
+    .guess-card .cell {
+      background: var(--card); border-radius: 0; aspect-ratio: auto;
+      display: flex; flex-direction: row; align-items: center; justify-content: space-between;
+      padding: 10px 14px; min-height: auto; gap: 10px;
+      border-bottom: 1px solid rgba(0,0,0,.04);
+    }
+    .cell::before { content: attr(data-label); font-size: 13px; font-weight: 600; opacity: .6; text-transform: uppercase; letter-spacing:.5px; }
+    .cell .value { font-size: 15px; }
+    .cell .value.team { font-size: 13px; }
+    .cell:last-child { border-radius: 0 0 var(--radius) var(--radius); }
 
     .dots { display: flex; gap: 5px; justify-content: center; padding: 6px; }
     .dot { width: 7px; height: 7px; border-radius: 50%; background: rgba(255,255,255,.25); transition: all .3s; cursor: pointer; }
     .dot.active { background: var(--accent2); box-shadow: 0 0 6px var(--accent2); }
 
     .btn-giveup { font-size: 11px; padding: 8px 10px; }
+
+    .legend { display: none; }
+    #bannerContainer .banner { max-width: 90%; }
   }
 </style>
 </head>
@@ -464,27 +489,27 @@ function renderCard(cyclist, results) {
   const moVal = cyclist.mo + (results[6]==='red' ? (cyclist.mo < MYSTERY.mo ? ' 🔼' : ' 🔽') : '');
 
   const cats = [
-    { val: cyclist.p },
-    { val: yearVal },
-    { val: SPEC_NAMES[cyclist.s]||cyclist.s },
-    { val: tourVal },
-    { val: giroVal },
-    { val: vueltaVal },
-    { val: moVal },
-    { val: cyclist.wc ? 'Oui' : 'Non' },
-    { val: cyclist.ea === 'retraite' ? 'Retraité' : (cyclist.ea||'?').toUpperCase() }
+    { val: cyclist.p, label: 'Pays' },
+    { val: yearVal, label: 'Année' },
+    { val: SPEC_NAMES[cyclist.s]||cyclist.s, label: 'Spécialité' },
+    { val: tourVal, label: 'Tour' },
+    { val: giroVal, label: 'Giro' },
+    { val: vueltaVal, label: 'Vuelta' },
+    { val: moVal, label: 'Monuments' },
+    { val: cyclist.wc ? 'Oui' : 'Non', label: 'Ch. Monde' },
+    { val: cyclist.ea === 'retraite' ? 'Retraité' : (cyclist.ea||'?').toUpperCase(), label: 'Équipe' }
   ];
   let cells = '';
   for (let i=0;i<cats.length;i++) {
     const teamCls = i===8 ? ' team' : '';
-    cells += `<div class="cell c-${results[i]}"><div class="icon"></div><div class="value${teamCls}">${cats[i].val}</div></div>`;
+    cells += `<div class="cell c-${results[i]}" data-label="${cats[i].label}"><div class="icon"></div><div class="value${teamCls}">${cats[i].val}</div></div>`;
   }
   // Normalize RIDER_IMAGES keys for consistent lookup (NFC/NFD issue)
   const riderKey = typeof RIDER_IMAGES !== 'undefined' ? Object.keys(RIDER_IMAGES).find(k => k.normalize('NFC') === cyclist.nom.normalize('NFC')) : null;
   const hasPhoto = riderKey && RIDER_IMAGES[riderKey];
   const wikiUrl = hasPhoto ? RIDER_IMAGES[riderKey] : '';
   const fallback = `https://ui-avatars.com/api/?name=${encodeURIComponent(cyclist.nom)}&size=120&background=1e293b&color=e2e8f0&bold=true&font-size=0.35&length=2`;
-  card.innerHTML = `<div class="guess-name-bar"><img src="${wikiUrl || fallback}" alt="${cyclist.nom}" referrerpolicy="no-referrer" onerror="this.onerror=null;this.src='${fallback}'"></div>${cells}`;
+  card.innerHTML = `<div class="guess-name-bar"><img src="${wikiUrl || fallback}" alt="${cyclist.nom}" referrerpolicy="no-referrer" onerror="this.onerror=null;this.src='${fallback}'"><span class="gn-name-mobile">${flag} ${cyclist.nom}</span></div>${cells}`;
 
   // Wrap in swipe page
   var page = document.createElement('div');
