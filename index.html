@@ -220,15 +220,14 @@
     .ch-spacer { background: none !important; }
 
     /* Swipe container */
-    .swipe-track { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; scroll-behavior: smooth; }
+    .swipe-track { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; scroll-behavior: smooth; flex: 1; }
     .swipe-track::-webkit-scrollbar { display: none; }
-    .swipe-page { min-width: 100%; scroll-snap-align: center; padding: 0 4px; display: flex; align-items: flex-start; justify-content: center; }
+    .swipe-page { min-width: 100%; scroll-snap-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; }
 
-    /* VERTICAL card on mobile */
+    /* VERTICAL card on mobile - fills the screen */
     .guess-card { 
       display: flex; flex-direction: column; gap: 0; padding: 0; 
-      background: transparent; box-shadow: none; width: 100%; max-width: 380px;
-      margin-top: 8px;
+      background: transparent; box-shadow: none; width: 92%; max-width: 380px;
     }
     .guess-name-bar { 
       aspect-ratio: auto; padding: 12px; border-radius: var(--radius) var(--radius) 0 0;
@@ -296,9 +295,7 @@
       <div class="ch-cell">🚲</div>
     </div>
     <div class="dots" id="swipeDots" style="display:none"></div>
-    <div class="swipe-track" id="swipeTrack">
-    <div class="guesses swipe-page" id="guesses"></div>
-    </div>
+    <div class="swipe-track" id="swipeTrack"></div>
     </div>
     <div id="bannerContainer"></div>
     <div class="legend">
@@ -472,7 +469,7 @@ function saveState(won) {
 
 // ── Render ──
 function renderCard(cyclist, results) {
-  const container = document.getElementById('guesses');
+  const container = document.getElementById('swipeTrack');
   const card = document.createElement('div');
   card.className = 'guess-card';
   const flag = FLAGS[cyclist.p] || '🏳️';
@@ -666,7 +663,7 @@ function giveUp() { if (gameOver) return; gameOver=true; saveState(false); updat
 // ── Restart (test mode) ──
 function restartGame() {
   localStorage.removeItem(getStorageKey());
-  document.getElementById('guesses').innerHTML = '';
+  document.getElementById('swipeTrack').innerHTML = '';
   document.getElementById('swipeDots').style.display = 'none';
   document.getElementById('bannerContainer').innerHTML = '';
   document.getElementById('searchWrapper').style.display = 'block';
